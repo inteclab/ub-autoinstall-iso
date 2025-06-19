@@ -1,3 +1,6 @@
 *~
 /iso_root*
 *.iso
+*.sha256
+*.verified
+.proxy_config

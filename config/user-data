@@ -1,1 +1,143 @@
-user-data.efi
+#cloud-config
+autoinstall:
+  version: 1
+  
+  # Locale and keyboard
+  locale: en_US.UTF-8
+  # 中文字体支持，避免乱码
+  packages:
+    - fonts-noto-core      # Comprehensive Unicode support
+    - fonts-noto-cjk       # Chinese/Japanese/Korean fonts
+    - fonts-liberation     # Microsoft font compatibility
+    - language-pack-zh-hans # Chinese language support
+  # late-commands:
+  #   - curtin in-target --target=/target -- fc-cache -fv
+  keyboard:
+    layout: us
+    variant: ''
+  
+
+  # 只配置系统盘
+  storage:
+    layout:
+      name: custom
+    config:
+      # 系统盘：选择特定插槽位置的设备
+      - type: disk
+        id: system-disk
+        match:
+          # 第1优先级：精确的物理设备
+          # #Prod 当前的系统盘
+          # - serial: "S7DPNF0Y306493W"  
+          # # dev 当前的系统盘
+          # - serial: "S7DPNF0XB12344H"
+
+          # # 第2优先级：VMware 测试环境
+          # - model: "VMware Virtual NVMe Disk"
+          - path: "/dev/nvme0n1"  # 固定指向系统盘
+
+        wipe: superblock-recursive
+        preserve: false
+        grub_device: true
+        ptable: gpt
+        # 添加这些选项进行更彻底的清理
+        boot_device: true
+      
+      # 系统盘分区
+      - type: partition
+        id: efi-partition
+        device: system-disk
+        size: 1GB
+        flag: boot
+      
+      - type: partition
+        id: boot-partition
+        device: system-disk
+        size: 2GB
+      
+      - type: partition
+        id: root-partition
+        device: system-disk
+        size: -1
+      
+      # 文件系统格式化
+      - type: format
+        id: format-efi
+        volume: efi-partition
+        fstype: fat32
+      
+      - type: format
+        id: format-boot
+        volume: boot-partition
+        fstype: ext4
+      
+      - type: format
+        id: format-root
+        volume: root-partition
+        fstype: ext4
+      
+      # 挂载点
+      - type: mount
+        id: mount-efi
+        device: format-efi
+        path: /boot/efi
+      
+      - type: mount
+        id: mount-boot
+        device: format-boot
+        path: /boot
+      
+      - type: mount
+        id: mount-root
+        device: format-root
+        path: /
+
+    
+  # Identity
+  identity:
+    hostname: acap-cn-prod1
+    username: acap
+    password: "$6$381a604220a53759$cfXLhILiNScGCFxyKm1JZWIlbFtm0nzcqiSxUau37vYso8bIpWsqx8bqjrEoZmwOrljFIPbDy1xA1jBrlZNL51"
+    
+  # SSH configuration
+  ssh:
+    install-server: true
+    allow-pw: false       # 禁用密码登录
+    disable-root: true    # 禁用root登录
+    authorized-keys:
+      - "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINT2HOcpd8IbDwKM3oa/LVmg+bgGjOWwdOGLU52IEOjA cn-as"  # Replace with your public key
+  
+  # apt:
+  #   mirror-selection:
+  #     primary:
+  #       - arches: [amd64]
+  #         uri: https://mirrors.tuna.tsinghua.edu.cn/ubuntu/
+  #     security:
+  #       - arches: [amd64]
+  #         uri: https://mirrors.tuna.tsinghua.edu.cn/ubuntu/
+  #   fallback: offline-install
+  # Packages to install
+  packages:
+    - openssh-server
+    - curl
+    - wget
+    - vim
+    - htop
+    - git
+    - mdadm
+    - lvm2
+    - ansible
+    # # 判断下是否需要
+    - gnutls-bin 
+    - gnupg 
+    - dpkg 
+    - apt-transport-https 
+    - lsb-release 
+    - ca-certificates
+
+
+
+  
+  # Reboot after installation
+  power-state:
+    mode: reboot 
